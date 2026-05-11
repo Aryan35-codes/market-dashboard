@@ -8,13 +8,12 @@ import asyncio
 import logging
 from cache import cache
 from config import settings
-from normalizer.normalize import normalize_sector, ts_now
-from services.yfinance_service import fetch_market_overview, fetch_stock_batch
+from normalizer.normalize import normalize_sector, ts_now, normalize_watchlist_stock
+from services.yfinance_service import fetch_market_overview, fetch_stock_batch, fetch_sector_heatmap
 from services.nse_service import nse
 from services.news_service import fetch_market_news
 from services.options_service import fetch_options_snapshot
 from services.ai_service import extract_structured_signals, generate_market_summary
-from normalizer.normalize import normalize_watchlist_stock
 
 logger = logging.getLogger(__name__)
 
@@ -28,22 +27,6 @@ WATCHLIST_UNIVERSE = [
     "ADANIENT.NS", "ADANIPORTS.NS", "JSWSTEEL.NS", "TECHM.NS", "INDUSINDBK.NS",
 ]
 
-# NSE sector indices for heatmap
-SECTOR_INDICES = {
-    "NIFTY BANK": "Banking",
-    "NIFTY IT": "IT",
-    "NIFTY AUTO": "Auto",
-    "NIFTY PHARMA": "Pharma",
-    "NIFTY ENERGY": "Energy",
-    "NIFTY METAL": "Metals",
-    "NIFTY FMCG": "FMCG",
-    "NIFTY REALTY": "Realty",
-    "NIFTY MEDIA": "Media",
-    "NIFTY PSU BANK": "PSU Banks",
-    "NIFTY FIN SERVICE": "Financial Services",
-    "NIFTY INFRA": "Infrastructure",
-}
-
 
 async def _refresh_overview():
     """Refresh market overview (indices + sparklines)."""
@@ -56,25 +39,12 @@ async def _refresh_overview():
 
 
 async def _refresh_heatmap():
-    """Refresh sector heatmap from NSE all-indices endpoint."""
+    """Refresh sector heatmap using Yahoo Finance (bypass NSE blocks)."""
     try:
-        raw = await nse.get_all_indices()
-        sectors = []
-
-        if raw and "data" in raw:
-            index_map = {item["index"]: item for item in raw["data"]}
-            for nse_name, display_name in SECTOR_INDICES.items():
-                if nse_name in index_map:
-                    pct = index_map[nse_name].get("percentChange", 0)
-                    try:
-                        pct = float(pct)
-                    except (ValueError, TypeError):
-                        pct = 0
-                    sectors.append(normalize_sector(display_name, pct).model_dump())
+        sectors = await fetch_sector_heatmap()
 
         if not sectors:
-            # Fallback: generate placeholder sectors
-            logger.warning("NSE heatmap data unavailable, using empty heatmap")
+            logger.warning("Yahoo heatmap data unavailable, using empty heatmap")
 
         cache.set("sector_heatmap", {"sectors": sectors, "updated_at": ts_now()}, settings.CACHE_TTL_HEATMAP + 60)
         logger.info(f"✓ Heatmap refreshed ({len(sectors)} sectors)")

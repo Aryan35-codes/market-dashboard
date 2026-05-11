@@ -2,8 +2,10 @@
 
 import yfinance as yf
 import logging
+import requests
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
+from datetime import datetime, timezone, timedelta
 
 from normalizer.normalize import normalize_index, ts_now
 
@@ -21,17 +23,31 @@ OVERVIEW_SYMBOLS = {
     "USDINR=X": "USD/INR",
 }
 
-import requests
+# NSE Sectoral Indices mapping for Yahoo Finance
+SECTOR_SYMBOLS = {
+    "^CNXIT": "IT",
+    "^CNXPHARMA": "PHARMA",
+    "^CNXAUTO": "AUTO",
+    "^CNXFMCG": "FMCG",
+    "^CNXREALTY": "REALTY",
+    "^CNXMETAL": "METAL",
+    "^CNXENERGY": "ENERGY",
+    "^CNXINFRA": "INFRA",
+    "^CNXPSUBANK": "PSU BANK",
+    "NIFTY_FIN_SERVICE.NS": "FIN SERVICE",
+}
 
 _executor = ThreadPoolExecutor(max_workers=4)
 
-# Stealth headers for yfinance
+# Ultimate Stealth Headers
 _session = requests.Session()
 _session.headers.update({
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
     "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
 })
 
 
@@ -48,6 +64,9 @@ def _fetch_single_ticker(symbol: str, name: str) -> dict | None:
             return None
 
         closes = hist["Close"].dropna()
+        if len(closes) == 0:
+            return None
+            
         current = float(closes.iloc[-1])
 
         # Previous close from info, fallback to first price of period
@@ -90,10 +109,20 @@ async def fetch_market_overview() -> dict:
     }
 
 
+async def fetch_sector_heatmap() -> list[dict]:
+    """Fetch sectoral performance data from Yahoo Finance."""
+    loop = asyncio.get_event_loop()
+    tasks = []
+
+    for symbol, name in SECTOR_SYMBOLS.items():
+        tasks.append(loop.run_in_executor(_executor, _fetch_single_ticker, symbol, name))
+
+    results = await asyncio.gather(*tasks)
+    return [r for r in results if r is not None]
+
+
 def _infer_market_status() -> str:
     """Simple market status inference based on current IST time."""
-    from datetime import datetime, timezone, timedelta
-
     ist = timezone(timedelta(hours=5, minutes=30))
     now = datetime.now(ist)
 
