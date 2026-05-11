@@ -1,11 +1,12 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/market";
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/market").replace(/\/$/, "");
 
 export async function fetchMarketData<T>(
   endpoint: string,
   revalidate: number = 15
 ): Promise<{ status: string; data: T | null; cache_age_seconds: number | null }> {
+  const url = `${API_BASE}/${endpoint.replace(/^\//, "")}`;
   try {
-    const res = await fetch(`${API_BASE}${endpoint}`, {
+    const res = await fetch(url, {
       next: { revalidate },
     });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
