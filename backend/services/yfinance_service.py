@@ -21,13 +21,24 @@ OVERVIEW_SYMBOLS = {
     "USDINR=X": "USD/INR",
 }
 
+import requests
+
 _executor = ThreadPoolExecutor(max_workers=4)
+
+# Stealth headers for yfinance
+_session = requests.Session()
+_session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Connection": "keep-alive",
+})
 
 
 def _fetch_single_ticker(symbol: str, name: str) -> dict | None:
     """Synchronous fetch for a single ticker (runs in thread pool)."""
     try:
-        ticker = yf.Ticker(symbol)
+        ticker = yf.Ticker(symbol, session=_session)
 
         # Get intraday data for sparkline
         hist = ticker.history(period="5d", interval="15m")
@@ -105,7 +116,7 @@ def _infer_market_status() -> str:
 def _fetch_stock_data(symbol: str) -> dict | None:
     """Fetch individual stock data for watchlist."""
     try:
-        ticker = yf.Ticker(symbol)
+        ticker = yf.Ticker(symbol, session=_session)
         hist = ticker.history(period="5d")
         if hist.empty or len(hist) < 2:
             return None

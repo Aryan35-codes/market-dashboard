@@ -12,16 +12,12 @@ logger = logging.getLogger(__name__)
 class NSEService:
     BASE_URL = "https://www.nseindia.com"
     HEADERS = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
-        ),
-        "Accept": "*/*",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
         "Accept-Encoding": "gzip, deflate, br",
-        "Referer": "https://www.nseindia.com/",
         "Connection": "keep-alive",
+        "Referer": "https://www.nseindia.com/",
     }
 
     def __init__(self):
@@ -32,12 +28,14 @@ class NSEService:
         """Visit NSE homepage to obtain session cookies."""
         if self._client:
             await self._client.aclose()
+        
         self._client = httpx.AsyncClient(
             headers=self.HEADERS,
             timeout=httpx.Timeout(15.0),
             follow_redirects=True,
         )
         try:
+            # First visit root to get cookies
             resp = await self._client.get(self.BASE_URL)
             self._cookies = dict(resp.cookies)
             logger.info("NSE session initialized")
@@ -58,19 +56,17 @@ class NSEService:
                 )
 
                 if resp.status_code == 200:
-                    # NSE often returns brotli-compressed data
-                    content_encoding = resp.headers.get("content-encoding", "")
                     try:
                         return resp.json()
                     except Exception:
-                        # Manually decompress brotli if httpx couldn't
+                        content_encoding = resp.headers.get("content-encoding", "")
                         if "br" in content_encoding:
                             decompressed = brotli.decompress(resp.content)
                             return json.loads(decompressed.decode("utf-8"))
                         raise
 
                 if resp.status_code in (401, 403):
-                    logger.warning("NSE session expired, refreshing...")
+                    logger.warning(f"NSE session expired (status {resp.status_code}), refreshing...")
                     await self._init_session()
                     continue
 
