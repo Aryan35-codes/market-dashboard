@@ -27,68 +27,86 @@ def price(value: float) -> float:
 def normalize_index(
     symbol: str,
     name: str,
-    current_price: float,
-    prev_close: float,
+    current_price: float | None,
+    prev_close: float | None,
     sparkline: list[float] | None = None,
 ) -> MarketIndex:
-    change = current_price - prev_close
-    change_pct = (change / prev_close) * 100 if prev_close else 0
+    # Handle missing prices
+    cur = float(current_price) if current_price is not None else 0.0
+    prev = float(prev_close) if prev_close is not None else cur
+    
+    change = cur - prev
+    change_pct = (change / prev) * 100 if prev else 0
+    
     return MarketIndex(
-        symbol=symbol,
-        name=name,
-        price=price(current_price),
+        symbol=str(symbol),
+        name=str(name),
+        price=price(cur),
         change=price(change),
         change_percent=pct(change_pct),
         direction=direction(change),
-        sparkline=[round(p, 2) for p in (sparkline or [])],
+        sparkline=[round(float(p), 2) for p in (sparkline or [])],
         updated_at=ts_now(),
     )
 
 
-def normalize_sector(name: str, change_pct: float) -> SectorPerformance:
+def normalize_sector(name: str, change_pct: float | None) -> SectorPerformance:
+    val = float(change_pct) if change_pct is not None else 0.0
     return SectorPerformance(
-        name=name,
-        change_percent=pct(change_pct),
-        direction=direction(change_pct),
+        name=str(name),
+        change_percent=pct(val),
+        direction=direction(val),
     )
 
 
-def normalize_strike_oi(strike: float, oi: int, change_oi: int = 0) -> StrikeOI:
-    return StrikeOI(strike=strike, oi=oi, change_oi=change_oi)
+def normalize_strike_oi(strike: float | None, oi: int | None, change_oi: int | None = 0) -> StrikeOI:
+    return StrikeOI(
+        strike=float(strike or 0),
+        oi=int(oi or 0),
+        change_oi=int(change_oi or 0)
+    )
 
 
 def normalize_watchlist_stock(
     symbol: str,
     name: str,
-    current_price: float,
-    prev_close: float,
+    current_price: float | None,
+    prev_close: float | None,
     volume_ratio: float | None,
     reason_short: str,
     reason_long: str,
     tags: list[str],
 ) -> WatchlistStock:
-    change = current_price - prev_close
-    change_pct = (change / prev_close) * 100 if prev_close else 0
+    cur = float(current_price or 0)
+    prev = float(prev_close or cur)
+    
+    change = cur - prev
+    change_pct = (change / prev) * 100 if prev else 0
+    
     return WatchlistStock(
-        symbol=symbol,
-        name=name,
-        price=price(current_price),
+        symbol=str(symbol),
+        name=str(name),
+        price=price(cur),
         change_percent=pct(change_pct),
         direction=direction(change),
-        volume_spike=round(volume_ratio, 1) if volume_ratio else None,
-        reason_short=reason_short,
-        reason_long=reason_long,
-        tags=tags,
+        volume_spike=round(float(volume_ratio), 1) if volume_ratio is not None else None,
+        reason_short=str(reason_short),
+        reason_long=str(reason_long),
+        tags=[str(t) for t in tags],
     )
 
 
 def normalize_news_item(
-    title: str, summary: str, source: str, url: str, published: str
+    title: str | None, 
+    summary: str | None, 
+    source: str | None, 
+    url: str | None, 
+    published: str | None
 ) -> NewsItem:
     return NewsItem(
-        title=title.strip(),
-        summary=summary.strip()[:300],
-        source=source,
-        url=url,
-        published_at=published,
+        title=str(title or "Untitled").strip(),
+        summary=str(summary or "").strip()[:300],
+        source=str(source or "Unknown"),
+        url=str(url or "#"),
+        published_at=str(published or ts_now()),
     )

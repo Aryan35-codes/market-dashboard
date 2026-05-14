@@ -128,3 +128,14 @@
     @apply font-sans;
   }
 }
+@layer utilities {
+  .glass-card {
+    @apply bg-zinc-900/40 backdrop-blur-md border border-zinc-800/50 transition-all duration-300;
+  }
+  .glass-card:hover {
+    @apply bg-zinc-900/60 border-zinc-700/50 shadow-lg shadow-black/20;
+  }
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-white to-zinc-500;
+  }
+}

@@ -8,7 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from scheduler import start_background_tasks
 from routes.market import router
-from services.nse_service import nse
 
 # Configure logging
 logging.basicConfig(
@@ -18,22 +17,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup: launch background tasks. Shutdown: cleanup."""
-    logger.info("Starting Market Intelligence Backend...")
+    logger.info("Starting GyanDheesh Backend...")
     tasks = await start_background_tasks()
     yield
     logger.info("Shutting down...")
     for task in tasks:
         task.cancel()
-    await nse.close()
 
 
 app = FastAPI(
-    title="Market Intelligence API",
-    description="Compressed market data for fast consumption",
+    title="GyanDheesh API",
+    description="Compressed market intelligence for fast consumption",
     version="1.0.0",
     lifespan=lifespan,
 )

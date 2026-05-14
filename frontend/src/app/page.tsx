@@ -18,9 +18,10 @@ import NewsCompression from "@/components/NewsCompression";
 import SectorHeatmap from "@/components/SectorHeatmap";
 import MarketMood from "@/components/MarketMood";
 import SectionHeader from "@/components/SectionHeader";
+import Logo from "@/components/Logo";
 import SkeletonCard, { SkeletonText } from "@/components/SkeletonCard";
 
-export const revalidate = 15;
+export const revalidate = 10;
 
 export default async function Dashboard() {
   // Fetch all data in parallel via server components
@@ -151,11 +152,17 @@ export default async function Dashboard() {
         </section>
 
         {/* Footer */}
-        <footer className="border-t border-zinc-800/50 pt-6 pb-8 text-center">
-          <p className="text-xs text-zinc-600">
-            MarketPulse — Market Intelligence Compressed · Not financial advice ·
-            Data from NSE, Yahoo Finance & RSS feeds
-          </p>
+        <footer className="border-t border-zinc-800/50 pt-10 pb-12 text-center">
+          <div className="flex flex-col items-center gap-4">
+            <Logo className="h-6 w-6 text-zinc-700 opacity-50" />
+            <p className="text-xs text-zinc-600 tracking-wide">
+              GyanDheesh — Market Intelligence Compressed
+              <span className="mx-2">·</span>
+              Not financial advice
+              <span className="mx-2">·</span>
+              Data from Yahoo Finance & NSE
+            </p>
+          </div>
         </footer>
       </main>
     </>

@@ -11,14 +11,32 @@ logger = logging.getLogger(__name__)
 
 class NSEService:
     BASE_URL = "https://www.nseindia.com"
-    HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
-        "Referer": "https://www.nseindia.com/",
-    }
+    USER_AGENTS = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edge/121.0.0.0",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    ]
+
+    def _get_headers(self):
+        import random
+        return {
+            "User-Agent": random.choice(self.USER_AGENTS),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "Referer": "https://www.nseindia.com/",
+            "Cache-Control": "max-age=0",
+            "Sec-Ch-Ua": '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Windows"',
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
+            "Upgrade-Insecure-Requests": "1",
+        }
 
     def __init__(self):
         self._client: httpx.AsyncClient | None = None
@@ -30,7 +48,7 @@ class NSEService:
             await self._client.aclose()
         
         self._client = httpx.AsyncClient(
-            headers=self.HEADERS,
+            headers=self._get_headers(),
             timeout=httpx.Timeout(15.0),
             follow_redirects=True,
         )
@@ -43,7 +61,7 @@ class NSEService:
             logger.error(f"Failed to init NSE session: {e}")
             self._cookies = {}
 
-    async def fetch(self, endpoint: str, retries: int = 3) -> dict | None:
+    async def fetch(self, endpoint: str, retries: int = 2) -> dict | None:
         """Fetch JSON from an NSE API endpoint with retry + session refresh."""
         for attempt in range(retries):
             try:
@@ -53,6 +71,7 @@ class NSEService:
                 resp = await self._client.get(
                     f"{self.BASE_URL}{endpoint}",
                     cookies=self._cookies,
+                    timeout=5.0
                 )
 
                 if resp.status_code == 200:

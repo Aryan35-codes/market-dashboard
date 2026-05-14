@@ -1,24 +1,24 @@
-# MarketPulse — AI Market Intelligence Dashboard
+# GyanDheesh — AI Market Intelligence Compressed
 
 A high-performance, minimalist market intelligence dashboard that compresses complex Indian and global market data into a 5-minute actionable summary.
 
-![Dashboard Preview](https://via.placeholder.com/1200x600?text=MarketPulse+Dashboard+Preview)
-
 ## 🚀 Features
 
-- **AI Market Summary**: 5-minute actionable brief powered by Gemini 1.5 Flash.
+- **AI Market Summary**: High-density 'Intelligence Compression' briefs powered by Gemini Flash.
 - **Market Mood**: Real-time sentiment indicator (Risk-On / Risk-Off).
 - **Smart Watchlist**: Automated screening for volume spikes, momentum, and breakouts.
-- **Sector Heatmap**: Lightweight performance visualization across NSE sectors.
-- **Options Snapshot**: NIFTY options chain metrics (PCR, Max Pain, OI).
+- **Sector Heatmap**: Lightweight performance visualization across NSE sectors (Direct Yahoo API).
+- **Options Snapshot**: NIFTY options chain metrics (PCR, Max Pain, OI) from NSE.
 - **News Compression**: Aggregated and sector-grouped news from top financial sources.
-- **Zero-Latency UI**: All data is pre-generated and cached in the background; the frontend never waits for upstream APIs.
+- **Resilient Data Architecture**: Hybrid fetching using Direct Yahoo APIs, NSE Stealth headers, and optional Angel One integration.
 
 ## 🏗️ Architecture
 
 ```mermaid
 graph TD
-    A["NSE / Yahoo Finance"] --> B["Backend (FastAPI)"]
+    A["Direct Yahoo API"] --> B["Backend (FastAPI)"]
+    B1["NSE Unofficial API"] --> B
+    B2["Angel One (Optional)"] --> B
     C["RSS Feeds"] --> B
     B --> D["Background Scheduler"]
     D --> E["Gemini Flash AI"]
@@ -31,23 +31,9 @@ graph TD
 ## 🛠️ Tech Stack
 
 - **Frontend**: Next.js 15 (App Router), Tailwind CSS, Shadcn/UI, Lucide Icons.
-- **Backend**: FastAPI (Python 3.12), Pydantic v2, HTTPX.
-- **AI**: Google Gemini 1.5 Flash (via `google-genai` SDK).
-- **Data Sources**: `yfinance`, NSE (Direct JSON), Feedparser.
-
-## 📦 Project Structure
-
-```text
-├── backend/            # FastAPI application
-│   ├── services/       # Data fetching & AI logic
-│   ├── routes/         # API endpoints
-│   ├── normalizer/     # Data transformation layer
-│   └── scheduler.py    # Background refresh loops
-├── frontend/           # Next.js application
-│   ├── src/app/        # Pages & Layouts
-│   ├── src/components/ # UI Components
-│   └── src/lib/        # API utilities
-```
+- **Backend**: FastAPI (Python 3.12), Pydantic v2, HTTPX (Stealth Fetching).
+- **AI**: Google Gemini Flash (Intelligence Compression).
+- **Data Sources**: Yahoo Finance (Primary Charts), NSE Unofficial (Options), Angel One SmartAPI (Optional LTP), RSS Feeds.
 
 ## 🚀 Quick Start
 
@@ -55,7 +41,7 @@ graph TD
 1. `cd backend`
 2. `python -m venv venv && source venv/bin/activate`
 3. `pip install -r requirements.txt`
-4. Create `.env` with `GEMINI_API_KEY`
+4. Create `.env` based on `.env.example`
 5. `uvicorn main:app --reload`
 
 ### Frontend Setup
@@ -67,4 +53,4 @@ graph TD
 ---
 
 ## ⚖️ Disclaimer
-*MarketPulse is for informational purposes only. It does not provide trade recommendations or financial advice. All data is subject to delay as per upstream providers.*
+*GyanDheesh is for informational purposes only. It does not provide trade recommendations or financial advice. All data is subject to delay as per upstream providers.*

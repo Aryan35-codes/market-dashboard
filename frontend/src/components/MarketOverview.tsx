@@ -12,20 +12,19 @@ export default function MarketOverview({ indices }: Props) {
       {indices.map((idx) => (
         <div
           key={idx.symbol}
-          className="group rounded-xl bg-zinc-900/80 border border-zinc-800/50 p-3.5 
-                     hover:border-zinc-700/60 transition-colors duration-200"
+          className="glass-card group rounded-xl p-4"
         >
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
               {idx.name}
             </span>
             <span
-              className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md ${
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                 idx.direction === "up"
-                  ? "text-green-400 bg-green-500/10"
+                  ? "text-emerald-500 bg-emerald-500/10"
                   : idx.direction === "down"
-                  ? "text-red-400 bg-red-500/10"
-                  : "text-zinc-400 bg-zinc-500/10"
+                  ? "text-rose-500 bg-rose-500/10"
+                  : "text-zinc-500 bg-zinc-500/10"
               }`}
             >
               {idx.direction === "up" ? "↑" : idx.direction === "down" ? "↓" : "—"}{" "}
@@ -40,11 +39,11 @@ export default function MarketOverview({ indices }: Props) {
                 {formatPrice(idx.price)}
               </p>
               <p
-                className={`text-xs font-mono tabular-nums mt-0.5 ${
+                className={`text-xs font-bold mt-1 ${
                   idx.direction === "up"
-                    ? "text-green-400"
+                    ? "text-emerald-500/80"
                     : idx.direction === "down"
-                    ? "text-red-400"
+                    ? "text-rose-500/80"
                     : "text-zinc-500"
                 }`}
               >

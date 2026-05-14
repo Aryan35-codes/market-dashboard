@@ -6,17 +6,20 @@ interface SectionHeaderProps {
 
 export default function SectionHeader({ title, subtitle, cacheAge }: SectionHeaderProps) {
   return (
-    <div className="flex items-baseline justify-between mb-4">
+    <div className="flex items-end justify-between mb-5 border-l-2 border-emerald-500/30 pl-4 py-1">
       <div>
-        <h2 className="text-base font-semibold text-zinc-100 tracking-tight">{title}</h2>
+        <h2 className="text-sm font-bold text-zinc-100 tracking-wider uppercase">{title}</h2>
         {subtitle && (
-          <p className="text-xs text-zinc-500 mt-0.5">{subtitle}</p>
+          <p className="text-[11px] text-zinc-500 mt-1 font-medium">{subtitle}</p>
         )}
       </div>
       {cacheAge && (
-        <span className="text-[10px] text-zinc-600 font-mono tabular-nums">
-          Updated {cacheAge}
-        </span>
+        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-zinc-900/50 border border-zinc-800/50">
+          <span className="w-1 h-1 rounded-full bg-zinc-600"></span>
+          <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-tighter">
+            {cacheAge}
+          </span>
+        </div>
       )}
     </div>
   );

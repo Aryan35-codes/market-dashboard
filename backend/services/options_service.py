@@ -1,8 +1,6 @@
-"""Options data processing from NSE option chain endpoints."""
-
 import logging
 from normalizer.normalize import normalize_strike_oi, ts_now
-from services.nse_service import nse
+from services.providers.manager import market_manager
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +42,8 @@ def _calculate_max_pain(data: list[dict]) -> float:
 
 
 async def fetch_options_snapshot(symbol: str = "NIFTY") -> dict | None:
-    """Fetch and process option chain data for a given index."""
-    raw = await nse.get_option_chain(symbol)
+    """Fetch and process option chain data via Provider Manager."""
+    raw = await market_manager.get_option_chain(symbol)
     if not raw:
         return None
 

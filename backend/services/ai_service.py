@@ -81,23 +81,24 @@ def extract_structured_signals(
 
 
 async def generate_market_summary(signals: dict) -> str:
-    """Use Gemini Flash to convert structured signals into a readable summary."""
-    prompt = f"""You are a market intelligence analyst writing a daily market brief.
-Based on the structured signals below, write a detailed, factual market summary.
+    """Use Gemini Flash to convert structured signals into a readable 'GyanDheesh Brief'."""
+    prompt = f"""You are 'GyanDheesh AI', a high-end market intelligence analyst.
+Your goal is 'Intelligence Compression': taking complex market signals and distilling them into a 5-minute actionable brief for students and professional traders.
+
+Based on the structured signals below, write a high-density market brief.
 
 RULES:
-- DO NOT make any predictions or buy/sell recommendations
-- DO NOT use words like "should", "will", "expect" in a predictive sense
-- Focus on: global cues, sector strength/weakness, institutional sentiment, important news, volatility context, overall market mood
-- Be detailed and informative — cover each signal area
-- Use bullet points for clarity
-- Write in professional, calm tone
-- Keep it factual and data-driven
+- NO trade predictions, NO buy/sell calls, NO 'institutional certainty' simulations.
+- Use a calm, analytical, and professional tone.
+- Highlight CONTEXT: Why does this movement matter? What is the core narrative of the day?
+- Focus on: Global macro cues, domestic sector rotation, volatility regime (via PCR), and key news impact.
+- Be concise but dense. Every sentence should add value.
+- Use bullet points with bold headers.
 
 STRUCTURED SIGNALS:
 {json.dumps(signals, indent=2)}
 
-Write the summary now:"""
+Write the 'GyanDheesh Brief' now:"""
 
     try:
         response = await client.aio.models.generate_content(

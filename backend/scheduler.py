@@ -9,13 +9,31 @@ import logging
 from cache import cache
 from config import settings
 from normalizer.normalize import normalize_sector, ts_now, normalize_watchlist_stock
-from services.yfinance_service import fetch_market_overview, fetch_stock_batch, fetch_sector_heatmap
-from services.nse_service import nse
 from services.news_service import fetch_market_news
 from services.options_service import fetch_options_snapshot
+from services.providers.manager import market_manager
 from services.ai_service import extract_structured_signals, generate_market_summary
+import functools
 
 logger = logging.getLogger(__name__)
+
+def retry_task(retries=3, delay=1):
+    """Decorator to retry a background task on failure."""
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            last_err = None
+            for i in range(retries):
+                try:
+                    return await func(*args, **kwargs)
+                except Exception as e:
+                    last_err = e
+                    wait = delay * (2 ** i) # Exponential backoff
+                    logger.warning(f"Retrying {func.__name__} in {wait}s... (Attempt {i+1}/{retries})")
+                    await asyncio.sleep(wait)
+            logger.error(f"Task {func.__name__} failed after {retries} attempts: {last_err}")
+        return wrapper
+    return decorator
 
 # Nifty 50 popular stocks for watchlist screening
 WATCHLIST_UNIVERSE = [
@@ -28,23 +46,41 @@ WATCHLIST_UNIVERSE = [
 ]
 
 
+@retry_task(retries=2, delay=2)
 async def _refresh_overview():
-    """Refresh market overview (indices + sparklines)."""
+    """Refresh market overview using Provider Manager."""
     try:
-        data = await fetch_market_overview()
+        data = await market_manager.get_market_overview()
+        data["updated_at"] = ts_now()
+        data["market_status"] = _infer_market_status()
+
         cache.set("market_overview", data, settings.CACHE_TTL_OVERVIEW + 60)
         logger.info("✓ Market overview refreshed")
     except Exception as e:
         logger.error(f"✗ Overview refresh failed: {e}")
 
+def _infer_market_status() -> str:
+    """Simple market status inference based on current IST time."""
+    from datetime import datetime, timezone, timedelta
+    ist = timezone(timedelta(hours=5, minutes=30))
+    now = datetime.now(ist)
+    if now.weekday() >= 5:
+        return "CLOSED"
+    hour_min = now.hour * 60 + now.minute
+    if 555 <= hour_min <= 930:  # 9:15 AM - 3:30 PM
+        return "OPEN"
+    elif 540 <= hour_min < 555:
+        return "PRE_OPEN"
+    return "CLOSED"
 
+
+@retry_task(retries=2, delay=2)
 async def _refresh_heatmap():
-    """Refresh sector heatmap using Yahoo Finance (bypass NSE blocks)."""
+    """Refresh sector heatmap via Manager."""
     try:
-        sectors = await fetch_sector_heatmap()
-
+        sectors = await market_manager.get_sector_heatmap()
         if not sectors:
-            logger.warning("Yahoo heatmap data unavailable, using empty heatmap")
+            logger.warning("Heatmap data unavailable")
 
         cache.set("sector_heatmap", {"sectors": sectors, "updated_at": ts_now()}, settings.CACHE_TTL_HEATMAP + 60)
         logger.info(f"✓ Heatmap refreshed ({len(sectors)} sectors)")
@@ -52,8 +88,9 @@ async def _refresh_heatmap():
         logger.error(f"✗ Heatmap refresh failed: {e}")
 
 
+@retry_task(retries=2, delay=2)
 async def _refresh_options():
-    """Refresh options snapshot for NIFTY."""
+    """Refresh options snapshot."""
     try:
         data = await fetch_options_snapshot("NIFTY")
         if data:
@@ -63,10 +100,11 @@ async def _refresh_options():
         logger.error(f"✗ Options refresh failed: {e}")
 
 
+@retry_task(retries=2, delay=2)
 async def _refresh_watchlist():
-    """Refresh smart watchlist — screen for volume spikes and momentum."""
+    """Refresh smart watchlist."""
     try:
-        stocks_data = await fetch_stock_batch(WATCHLIST_UNIVERSE)
+        stocks_data = await market_manager.get_stock_quotes(WATCHLIST_UNIVERSE)
         smart_picks = []
 
         for s in stocks_data:
@@ -78,13 +116,25 @@ async def _refresh_watchlist():
 
             if vol_ratio > 1.5:
                 tags.append("volume")
-                reasons.append(f"{vol_ratio}x avg volume")
-            if abs(change_pct) > 2:
+                if abs(change_pct) < 0.5:
+                    tags.append("accumulation")
+                    reasons.append(f"Heavy accumulation: {vol_ratio}x volume with tight price action")
+                else:
+                    reasons.append(f"Significant volume spike: {vol_ratio}x avg")
+
+            if change_pct > 3:
                 tags.append("momentum")
-                reasons.append(f"{'Strong rally' if change_pct > 0 else 'Sharp decline'} of {abs(round(change_pct, 1))}%")
-            if vol_ratio > 2 and abs(change_pct) > 1.5:
+                reasons.append(f"Strong bullish momentum (+{round(change_pct, 1)}%)")
+            elif change_pct < -3:
+                tags.append("panic")
+                reasons.append(f"Sharp selling pressure ({round(change_pct, 1)}%)")
+
+            if vol_ratio > 2.5 and change_pct > 2:
                 tags.append("breakout")
-                reasons.append("High volume with strong price move — possible breakout")
+                reasons.append("High-conviction breakout on massive volume")
+            elif vol_ratio > 2.5 and change_pct < -2:
+                tags.append("breakdown")
+                reasons.append("Technical breakdown on heavy participation")
 
             if tags:
                 symbol_clean = s["symbol"].replace(".NS", "")
@@ -100,7 +150,6 @@ async def _refresh_watchlist():
                 ).model_dump()
                 smart_picks.append(stock)
 
-        # Sort by volume spike (descending) and take top 10
         smart_picks.sort(key=lambda x: x.get("volume_spike", 0) or 0, reverse=True)
         smart_picks = smart_picks[:10]
 
@@ -110,8 +159,9 @@ async def _refresh_watchlist():
         logger.error(f"✗ Watchlist refresh failed: {e}")
 
 
+@retry_task(retries=2, delay=2)
 async def _refresh_news():
-    """Refresh market news from RSS feeds."""
+    """Refresh market news."""
     try:
         data = await fetch_market_news()
         cache.set("market_news", data, settings.CACHE_TTL_NEWS + 60)
@@ -120,8 +170,9 @@ async def _refresh_news():
         logger.error(f"✗ News refresh failed: {e}")
 
 
+@retry_task(retries=2, delay=2)
 async def _refresh_mood():
-    """Derive market mood from available data."""
+    """Derive market mood."""
     try:
         overview = cache.get_value("market_overview")
         options = cache.get_value("options_snapshot")
@@ -129,7 +180,6 @@ async def _refresh_mood():
 
         mood = "Neutral"
         description = "Insufficient data to determine market mood."
-        vix = None
 
         if overview and overview.get("indices"):
             indices = overview["indices"]
@@ -139,25 +189,23 @@ async def _refresh_mood():
 
             if ratio > 0.7:
                 mood = "Risk-On"
-                description = "Broad-based buying across indices. Market sentiment is positive."
+                description = "Broad-based buying across indices."
             elif ratio < 0.3:
                 mood = "Risk-Off"
-                description = "Widespread selling pressure. Markets are cautious."
+                description = "Widespread selling pressure."
             elif options and options.get("pcr", 0) > 1.3:
                 mood = "Volatile"
-                description = "Elevated put activity suggests hedging. Expect choppy movements."
+                description = "Elevated put activity suggests hedging."
             elif 0.4 <= ratio <= 0.6:
                 mood = "Range-Bound"
-                description = "Mixed signals across indices. Market lacks clear direction."
+                description = "Mixed signals across indices."
             else:
                 mood = "Trending"
-                description = "Markets showing directional momentum with moderate participation."
+                description = "Markets showing directional momentum."
 
         cache.set("market_mood", {
             "mood": mood,
             "description": description,
-            "vix": vix,
-            "advance_decline_ratio": None,
             "updated_at": ts_now(),
         }, settings.CACHE_TTL_MOOD + 60)
         logger.info(f"✓ Market mood: {mood}")
@@ -165,14 +213,23 @@ async def _refresh_mood():
         logger.error(f"✗ Mood refresh failed: {e}")
 
 
+@retry_task(retries=2, delay=2)
 async def _refresh_ai_summary():
-    """Background AI summary generation from cached structured signals."""
+    """Background AI summary generation."""
     try:
         overview = cache.get_value("market_overview")
         heatmap = cache.get_value("sector_heatmap")
         news = cache.get_value("market_news")
         options = cache.get_value("options_snapshot")
         mood = cache.get_value("market_mood")
+
+        # Log what we have
+        available = [k for k, v in {"overview": overview, "heatmap": heatmap, "news": news, "options": options}.items() if v]
+        logger.info(f"AI Summary Input Check: Available sources -> {', '.join(available) if available else 'None'}")
+
+        if not overview and not heatmap:
+            logger.warning("Skipping AI Summary: Basic market data missing")
+            return
 
         signals = extract_structured_signals(overview, heatmap, news, options, mood)
         summary_text = await generate_market_summary(signals)
@@ -182,36 +239,32 @@ async def _refresh_ai_summary():
             "signals": signals,
             "updated_at": ts_now(),
         }, settings.CACHE_TTL_SUMMARY + 120)
-        logger.info("✓ AI summary generated")
+        logger.info("✓ AI summary generated successfully")
     except Exception as e:
         logger.error(f"✗ AI summary generation failed: {e}")
 
 
-# ── Scheduler loops ───────────────────────────────────────────────
-
 async def _loop(name: str, fn, interval: int):
-    """Generic refresh loop."""
     while True:
-        logger.info(f"→ Refreshing {name}...")
         await fn()
         await asyncio.sleep(interval)
 
 
 async def start_background_tasks() -> list[asyncio.Task]:
-    """Start all background refresh tasks. Called from FastAPI lifespan."""
-    # Initial data load — stagger to avoid thundering herd
-    logger.info("Starting initial data load...")
-    await _refresh_overview()
-    await asyncio.sleep(1)
-    await _refresh_heatmap()
-    await _refresh_options()
-    await asyncio.sleep(1)
-    await _refresh_news()
-    await _refresh_watchlist()
-    await asyncio.sleep(1)
+    logger.info("Starting parallel initial data load...")
+    # Load all baseline data in parallel so AI Summary isn't delayed
+    await asyncio.gather(
+        _refresh_overview(),
+        _refresh_heatmap(),
+        _refresh_options(),
+        _refresh_news(),
+        _refresh_watchlist(),
+        return_exceptions=True
+    )
+    # Mood and Summary depend on the above data
     await _refresh_mood()
     await _refresh_ai_summary()
-    logger.info("Initial data load complete. Starting refresh loops.")
+    logger.info("Initial load complete.")
 
     tasks = [
         asyncio.create_task(_loop("overview", _refresh_overview, settings.REFRESH_INTERVAL_FAST)),

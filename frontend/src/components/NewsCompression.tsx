@@ -19,30 +19,39 @@ export default function NewsCompression({ data }: Props) {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {orderedSectors.map((sector) => (
-        <div key={sector}>
-          <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-            {sector}
-          </h3>
-          <div className="space-y-1.5">
+        <div key={sector} className="relative">
+          <div className="flex items-center gap-3 mb-3">
+            <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">
+              {sector}
+            </h3>
+            <div className="h-px w-full bg-zinc-800/50"></div>
+          </div>
+          <div className="grid gap-2">
             {data.sectors[sector].slice(0, 4).map((item, i) => (
               <div
                 key={i}
-                className="flex gap-2 py-1.5 px-3 rounded-lg bg-zinc-900/60 border border-zinc-800/30
-                           hover:border-zinc-700/40 transition-colors duration-150"
+                className="glass-card flex gap-3 p-3 rounded-xl"
               >
-                <span className="text-zinc-600 mt-0.5 flex-shrink-0 text-xs">•</span>
-                <div className="min-w-0">
+                <div className="w-1 h-1 rounded-full bg-emerald-500/40 mt-2 flex-shrink-0"></div>
+                <div className="min-w-0 flex-1">
                   <a
                     href={item.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-zinc-300 hover:text-zinc-100 transition-colors leading-snug line-clamp-2"
+                    className="text-xs font-medium text-zinc-300 hover:text-emerald-400 transition-colors leading-relaxed block"
                   >
                     {item.title}
                   </a>
-                  <span className="text-[10px] text-zinc-600 ml-1">{item.source}</span>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-tighter">
+                      {item.source}
+                    </span>
+                    <span className="text-[9px] text-zinc-700 font-mono italic">
+                      {item.published_at.split('T')[1]?.split('.')[0] || ''}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}

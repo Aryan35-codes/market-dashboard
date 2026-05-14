@@ -6,6 +6,15 @@ interface Props {
 }
 
 export default function OptionsSnapshot({ data }: Props) {
+  if (!data || (!data.top_call_oi?.length && !data.top_put_oi?.length)) {
+    return (
+      <div className="glass-card flex flex-col items-center justify-center p-8 text-center rounded-xl">
+        <p className="text-sm text-zinc-500 font-medium">Derivative data temporarily unavailable</p>
+        <p className="text-[10px] text-zinc-600 mt-1 uppercase tracking-widest">Waiting for NSE session refresh</p>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl bg-zinc-900/80 border border-zinc-800/50 p-4">
       {/* Key metrics row */}

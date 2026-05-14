@@ -10,3 +10,5 @@ pydantic-settings>=2.5.0
 google-genai==1.2.0
 brotli==1.1.0
 gunicorn==23.0.0
+smartapi-python==2.0.4
+pyotp==2.9.0
